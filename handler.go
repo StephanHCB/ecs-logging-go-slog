@@ -5,7 +5,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"runtime"
 )
 
 const (
@@ -20,10 +19,6 @@ const (
 	messageKey   = "message"
 	logLevelKey  = "log.level"
 	logLoggerKey = "log.logger"
-	fileNameKey  = "file.name"
-	fileLineKey  = "file.line"
-	logOriginKey = "log.origin"
-	functionKey  = "function"
 )
 
 type Handler struct {
@@ -70,19 +65,12 @@ func (x *Handler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 func (x *Handler) Handle(ctx context.Context, record slog.Record) error {
-	fs := runtime.CallersFrames([]uintptr{record.PC})
-	f, _ := fs.Next()
 	record.AddAttrs(
 		slog.Time(timestampKey, record.Time),
 		slog.String(messageKey, record.Message),
 		slog.String(logLevelKey, x.levelNamer(record.Level)),
 		slog.String(ecsVersionKey, ecsVersion),
 		slog.String(logLoggerKey, logger),
-		slog.Group(logOriginKey,
-			slog.String(fileNameKey, f.File),
-			slog.Int(fileLineKey, f.Line),
-			slog.String(functionKey, f.Function),
-		),
 	)
 	return x.jsonHandler.Handle(ctx, record)
 }
