@@ -1,3 +1,3 @@
-module github.com/vispariana/ecs-logging-go-slog
+module github.com/StephanHCB/ecs-logging-go-slog
 
 go 1.21.0
