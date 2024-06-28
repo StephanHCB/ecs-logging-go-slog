@@ -24,10 +24,6 @@ const (
 	fileLineKey  = "file.line"
 	logOriginKey = "log.origin"
 	functionKey  = "function"
-
-	errorKey           = "error"
-	errorMessageKey    = "message"
-	errorStackTraceKey = "stack_trace"
 )
 
 type Handler struct {
@@ -36,27 +32,28 @@ type Handler struct {
 }
 
 type Config struct {
-	Writer io.Writer
+	HandlerOptions slog.HandlerOptions
+
 	// enables customizing of how log levels would look (INFO, info, INF, etc.)
 	LevelNamer func(slog.Level) string
 }
 
-func NewHandler(c Config) *Handler {
-	if c.LevelNamer == nil {
-		c.LevelNamer = defaultLevelNamer
+func NewECSHandler(writer io.Writer, config Config) *Handler {
+	if config.LevelNamer == nil {
+		config.LevelNamer = defaultLevelNamer
 	}
-	if c.Writer == nil {
-		c.Writer = os.Stdout
+	if writer == nil {
+		writer = os.Stdout
 	}
+	config.HandlerOptions.ReplaceAttr = removeJsonHandlerAttrs
+
 	return &Handler{
-		jsonHandler: slog.NewJSONHandler(c.Writer, &slog.HandlerOptions{
-			ReplaceAttr: removeJsonHandlerAttrs,
-		}),
-		levelNamer: c.LevelNamer,
+		jsonHandler: slog.NewJSONHandler(writer, &config.HandlerOptions),
+		levelNamer:  config.LevelNamer,
 	}
 }
 
-// slog.JsonHandler has opinions about some field names. This removes all of them so we can later add ECS compliant ones.
+// slog.JsonHandler has opinions about some field names. This removes all of them, so we can later add ECS compliant ones.
 func removeJsonHandlerAttrs(groups []string, a slog.Attr) slog.Attr {
 	switch a.Key {
 	case "time", "msg", "source", "level":
@@ -68,7 +65,6 @@ func removeJsonHandlerAttrs(groups []string, a slog.Attr) slog.Attr {
 
 func defaultLevelNamer(l slog.Level) string { return l.String() }
 
-// TODO should be handled by ecsslog.Handler
 func (x *Handler) Enabled(ctx context.Context, level slog.Level) bool {
 	return x.jsonHandler.Enabled(ctx, level)
 }
@@ -91,7 +87,6 @@ func (x *Handler) Handle(ctx context.Context, record slog.Record) error {
 	return x.jsonHandler.Handle(ctx, record)
 }
 
-// TODO add a clone method for convenience
 func (x *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	return &Handler{jsonHandler: x.jsonHandler.WithAttrs(attrs), levelNamer: x.levelNamer}
 }
